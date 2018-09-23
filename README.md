@@ -1,2 +1,2 @@
 # SynchProblems
-6 syncronization problems
+6 synchronization problems
