@@ -1,3 +1,9 @@
+/**
+ * Inspired by a "solution" provided J. Miller via USCViterbi:
+ * http://www-scf.usc.edu/~csci201/lectures/Lecture18/ProducerConsumer.pdf
+ * As in the slides above, this potential solution uses monitors as
+ * the main concurrency mechanism.
+ */
 package pc;
 
 import java.util.concurrent.*;
@@ -10,9 +16,9 @@ public class ProducerConsumerMonitor{
   private Object notEmpty;
   private Object notFull;
 
-  public ProducerConsumerMonitor(int size){
-    buffer = new ArrayList<String>(size);
-    buffSize = size;
+  public ProducerConsumerMonitor(int buffSize){
+    buffer = new ArrayList<String>(buffSize);
+    buffSize = buffSize;
     notEmpty = new Object();
     notFull = new Object();
   }

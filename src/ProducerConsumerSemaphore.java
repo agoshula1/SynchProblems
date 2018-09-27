@@ -1,3 +1,9 @@
+/**
+ * Based on solution to Producer-Consumer (with finite buffer) problem given
+ * in the "Little Book of Semaphores" by Allen B. Downey. As in the book, this
+ * solution uses semaphores as the main concurrency mechanism.
+ */
+
 package pc;
 
 import java.util.concurrent.*;
@@ -5,15 +11,21 @@ import java.util.List;
 import java.util.ArrayList;
 
 public class ProducerConsumerSemaphore{
+  private Semaphore buffLock;
+  private Semaphore numEvents;
+  private Semaphore buffSpace;
+  //buffer size limit enforced by using buffSpace semaphore
+  private List<String> buffer;
 
-  public static void simulate(int numThreads, int buffSize){
-    ExecutorService executor = Executors.newFixedThreadPool(numThreads);
-
+  public ProducerConsumerSemaphore(int buffSize){
     Semaphore buffLock = new Semaphore(1);
     Semaphore numEvents = new Semaphore(0);
     Semaphore buffSpace = new Semaphore(buffSize);
-    //size limit enforced by using buffSpace semaphore
-    List<String> buffer = new ArrayList<String>(buffSize);
+    buffer = new ArrayList<String>(buffSize);
+  }
+
+  public void simulate(int numThreads){
+    ExecutorService executor = Executors.newFixedThreadPool(numThreads);
 
     Runnable producer = () -> {
         String event = ProducerConsumerUtil.waitForEvent();
@@ -57,6 +69,7 @@ public class ProducerConsumerSemaphore{
   }
 
   public static void main(String[] args){
-    simulate(20,5);
+    ProducerConsumerSemaphore pc = new ProducerConsumerSemaphore(5);
+    pc.simulate(20);
   }
 }

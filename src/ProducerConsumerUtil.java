@@ -1,3 +1,6 @@
+/**
+ * utilities used by PC problem solutions
+ */
 package pc;
 
 import java.util.concurrent.ExecutorService;
