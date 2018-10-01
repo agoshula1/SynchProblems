@@ -1,3 +1,9 @@
+/**
+ * Based on solution to Readers-writers (without starvation) problem given
+ * in the "Little Book of Semaphores" by Allen B. Downey. As in the book, this
+ * solution uses semaphores as the main concurrency mechanism.
+ */
+
 import java.util.concurrent.*;
 import java.util.List;
 import java.util.ArrayList;
