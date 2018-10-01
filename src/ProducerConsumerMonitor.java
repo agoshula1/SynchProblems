@@ -1,5 +1,6 @@
 /**
- * Inspired by a "solution" provided J. Miller via USCViterbi:
+ * Inspired by a "solution" to Producer-Consumer (with finite buffer) problem
+ * provided J. Miller via USCViterbi:
  * http://www-scf.usc.edu/~csci201/lectures/Lecture18/ProducerConsumer.pdf
  * As in the slides above, this potential solution uses monitors as
  * the main concurrency mechanism.

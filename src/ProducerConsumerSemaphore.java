@@ -18,9 +18,9 @@ public class ProducerConsumerSemaphore{
   private List<String> buffer;
 
   public ProducerConsumerSemaphore(int buffSize){
-    Semaphore buffLock = new Semaphore(1);
-    Semaphore numEvents = new Semaphore(0);
-    Semaphore buffSpace = new Semaphore(buffSize);
+    buffLock = new Semaphore(1);
+    numEvents = new Semaphore(0);
+    buffSpace = new Semaphore(buffSize);
     buffer = new ArrayList<String>(buffSize);
   }
 
