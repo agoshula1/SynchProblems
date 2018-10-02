@@ -4,6 +4,8 @@
  As in the book, this solution uses semaphores as the main concurrency mechanism.
 '''
 import threading
+import random
+import time
 
 def left(i):
     return i
@@ -13,13 +15,27 @@ def right(i):
 
 def get_forks(i):
     footman.acquire()
-    fork[right(i)].acquire()
-    fork[left(i)].acquire()
+    forks[right(i)].acquire()
+    forks[left(i)].acquire()
+    print "philosopher " + str(i) + " eating"
 
 def put_forks(i):
-    fork[right(i)].release()
-    fork[left(i)].release()
+    forks[right(i)].release()
+    forks[left(i)].release()
     footman.release()
+
+def philosopher(i):
+    #think
+    time.sleep(random.randint(1,2))
+    get_forks(i)
+    #eat
+    time.sleep(random.randint(1,2))
+    put_forks(i)
 
 forks = [threading.Semaphore(1) for i in range(5)]
 footman = threading.Semaphore(4)
+
+while(True):
+    for n in range(5):
+        t = threading.Thread(target=philosopher, args=(n,))
+        t.start()
