@@ -2,8 +2,8 @@
  * Inspired by a "solution" to Producer-Consumer (with finite buffer) problem
  * provided J. Miller via USCViterbi:
  * http://www-scf.usc.edu/~csci201/lectures/Lecture18/ProducerConsumer.pdf
- * As in the slides above, this potential solution uses monitors as
- * the main concurrency mechanism.
+ * As in the slides above, this potential solution uses monitors and
+ * condition variables as the main concurrency mechanisms.
  */
 package pc;
 
