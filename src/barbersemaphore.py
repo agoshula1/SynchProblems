@@ -59,6 +59,11 @@ for n in range(ncustthreads):
     t = threading.Thread(target=customer, args=(shareddata,n))
     threads.append(t)
     t.start()
+    r = threading.Thread(target=barber, args=(n,))
+    threads.append(r)
+    r.start()
+for i in range(len(threads)):
+    threads[i].join()
 '''while(True):
     t = threading.Thread(target=barber, args=(n,))
     t.start()
