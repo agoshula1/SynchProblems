@@ -4,11 +4,10 @@
  * solution uses semaphores as the main concurrency mechanism.
  */
 
-package pc;
-
 import java.util.concurrent.*;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.concurrent.TimeUnit;
 
 public class ProducerConsumerSemaphore{
   private Semaphore buffLock;
@@ -24,52 +23,83 @@ public class ProducerConsumerSemaphore{
     buffer = new ArrayList<String>(buffSize);
   }
 
-  public void simulate(int numThreads){
-    ExecutorService executor = Executors.newFixedThreadPool(numThreads);
+  private class Producer implements Runnable{
+    int i;
+    public Producer(int i){
+      this.i = i;
+    }
+    public void run(){
+      String event = "event" + i;
+      try {
+          buffSpace.acquire(); //wait if buffer full
+          buffLock.acquire();
+          //critical section
+          buffer.add(event);
+          System.out.println("Producing: " + event);
+          //end critical section
+      } catch (InterruptedException e) {
+          throw new IllegalStateException(e);
+      } finally {
+          buffLock.release();
+          numEvents.release();
+      }
+    }
+  }
 
-    Runnable producer = () -> {
-        String event = ProducerConsumerUtil.waitForEvent();
-        try {
-            buffSpace.acquire(); //wait if buffer full
-            buffLock.acquire();
-            //critical section
-            buffer.add(event);
-            //end critical section
-        } catch (InterruptedException e) {
-            throw new IllegalStateException(e);
-        } finally {
-            buffLock.release();
-            numEvents.release();
-        }
-    };
+  private class Consumer implements Runnable{
+    public void run(){
+      String event = "";
+      try {
+          numEvents.acquire(); //wait if buffer empty
+          buffLock.acquire();
+          //critical section
+          event = buffer.remove(0);
+          System.out.println("\t\tConsuming: " + event);
+          //end critical section
+      } catch (InterruptedException e) {
+          throw new IllegalStateException(e);
+      } finally {
+          buffLock.release();
+          buffSpace.release();
+      }
+    }
+  }
 
-    Runnable consumer = () -> {
-        String event = "";
-        try {
-            numEvents.acquire(); //wait if buffer empty
-            buffLock.acquire();
-            //critical section
-            event = buffer.remove(0);
-            //end critical section
-            ProducerConsumerUtil.processEvent(event);
-        } catch (InterruptedException e) {
-            throw new IllegalStateException(e);
-        } finally {
-            buffLock.release();
-            buffSpace.release();
-        }
-    };
+  public static void sleep(int seconds) {
+    try {
+        TimeUnit.SECONDS.sleep(seconds);
+    } catch (InterruptedException e) {
+        throw new IllegalStateException(e);
+    }
+  }
 
-    for(int i = 0; i < numThreads/2; ++i){
-      executor.submit(producer);
-      executor.submit(consumer);
+  public void simulate(int prodThreads, int consThreads){
+    List<Thread> threads = new ArrayList<Thread>(prodThreads + consThreads);
+
+    Thread t;
+    for(int i = 0; i < prodThreads; ++i){
+      t = new Thread(new Producer(i));
+      threads.add(t);
+      t.start();
+    }
+    for(int i = 0; i < consThreads; ++i){
+      t = new Thread(new Consumer());
+      threads.add(t);
+      t.start();
     }
 
-    ProducerConsumerUtil.stop(executor);
+    //wait for all threads to complete
+    for(int i = 0; i < threads.size(); i++){
+      try{
+        threads.get(i).join();
+      }catch (InterruptedException e){
+        System.out.println("Thread " + i + " was interrupted");
+      }
+    }
   }
 
   public static void main(String[] args){
     ProducerConsumerSemaphore pc = new ProducerConsumerSemaphore(5);
-    pc.simulate(20);
+    pc.simulate(10,10);
   }
 }
