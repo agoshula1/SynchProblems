@@ -1,6 +1,6 @@
 /**
  * Based on a "solution" to Producer-Consumer (with finite buffer) problem
- * provided by J. Miller via USCViterbi:
+ * provided by J. Miller via USC Viterbi School of Engineering:
  * http://www-scf.usc.edu/~csci201/lectures/Lecture18/ProducerConsumer.pdf
  * As in the slides above, this potential solution uses monitors and
  * condition variables as the main concurrency mechanisms.
@@ -77,16 +77,19 @@ public class ProducerConsumerMonitor{
     }
   }
 
+  //launch consumers and producers back-to-back
+  //numThreads must be even or there will an imbalance of producers to consumers
   public void simulate(int numThreads){
     List<Thread> threads = new ArrayList<Thread>(numThreads);
-    Thread t,r;
-    for(int i = 0; i < numThreads/2; ++i){
-      t = new Thread(new ProducerTask(i));
+    Thread t;
+    for(int i = 0; i < numThreads; ++i){
+      if(i % 2 == 0){
+        t = new Thread(new ProducerTask(i));
+      }else{
+        t = new Thread(new ConsumerTask());
+      }
       threads.add(t);
-      r = new Thread(new ConsumerTask());
-      threads.add(r);
       t.start();
-      r.start();
     }
 
     //wait for all threads to complete
