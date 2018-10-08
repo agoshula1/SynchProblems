@@ -7,6 +7,7 @@
  it follows a different scheme than the solution from the "Little Book of Semaphores".
 '''
 import threading
+import time
 
 #classes to hold states of shared data
 class StrData():
@@ -17,56 +18,92 @@ class StrData():
     def gets(self):
         return self.s
 
-class LogicalData():
+class SyncCtrl():
     def __init__(self):
         self.ctrin = 0
         self.ctrout = 0
         self.wait = False
+        self.in_sem = threading.Semaphore(1)
+        self.out = threading.Semaphore(1)
+        self.wrt = threading.Semaphore(0)
 
 # writer thread
-def writer(in_sem, out, wrt, ctrl, data, n):
-    in_sem.acquire()
-    out.acquire()
+def writer(ctrl, data, n):
+    t0 = time.clock()
+    ctrl.in_sem.acquire()
+    ctrl.out.acquire()
     if ctrl.ctrin == ctrl.ctrout:
-        out.release()
+        ctrl.out.release()
     else:
         ctrl.wait = True
-        out.release()
-        wrt.acquire()
+        ctrl.out.release()
+        ctrl.wrt.acquire()
         ctrl.wait = False
+    waitTime = time.clock() - t0
 
     #critical section
-    # Do some work
     item = "item" + str(n)
     data.concat(item)
-    print "Writing: " + item + "\n"
+    #print "\tWriting: " + item + "\n"
+    #print "\tWriter wait time (sec): {}".format(waitTime)
 
-    in_sem.release()
+    ctrl.in_sem.release()
 
 #reader thread
-def reader(in_sem, out, wrt, ctrl, data):
-    in_sem.acquire()
+def reader(ctrl, data):
+    ctrl.in_sem.acquire()
     ctrl.ctrin += 1
-    in_sem.release()
+    ctrl.in_sem.release()
 
     #critical section
-    print "Reading: " + data.gets() + "\n"
+    #print "Reading: " + data.gets() + "\n"
 
-    out.acquire()
+    ctrl.out.acquire()
     ctrl.ctrout += 1
     if ctrl.wait and ctrl.ctrin == ctrl.ctrout:
-        wrt.release()
-    out.release()
+        ctrl.wrt.release()
+    ctrl.out.release()
 
+def test(nthreads, inc, ctrl, sharedData):
+    threads = []
+
+    for n in range(nthreads):
+        if n % inc == 0:
+            t = threading.Thread(target=writer, args=(ctrl, sharedstr, n))
+        else:
+            t = threading.Thread(target=reader, args=(ctrl, sharedstr))
+        threads.append(t)
+        t.start()
+    #wait until threads are done
+    for i in range(len(threads)):
+        threads[i].join()
+
+#correctness testing
 # setup semaphores and other variables
-in_sem = threading.Semaphore(1)
-out = threading.Semaphore(1)
-wrt = threading.Semaphore(0)
-ctrl = LogicalData()
-nthreads = 50
+ctrl = SyncCtrl()
 sharedstr = StrData()
-for n in range(nthreads/2):
-    t = threading.Thread(target=writer, args=(in_sem, out, wrt, ctrl, sharedstr, n))
-    r = threading.Thread(target=reader, args=(in_sem, out, wrt, ctrl, sharedstr))
-    t.start()
-    r.start()
+'''#test 1: launch readers and writers back-to-back
+print "Test 1:\n"
+test(20,2,ctrl,sharedstr)
+
+ctrl = SyncCtrl()
+sharedstr = StrData()
+#test 2: launch several readers, with the occasional reader (to detect starvation)
+test(20,10,ctrl,sharedstr)'''
+
+#performance testing
+t0 = time.clock()
+test(20,2,ctrl,sharedstr);
+print "Step 1: Time elapsed (sec) = {}".format(time.clock() - t0)
+
+ctrl = SyncCtrl()
+sharedstr = StrData()
+t0 = time.clock()
+test(200,2,ctrl,sharedstr);
+print "Step 2: Time elapsed (sec) = {}".format(time.clock() - t0)
+
+ctrl = SyncCtrl()
+sharedstr = StrData()
+t0 = time.clock()
+test(2000,2,ctrl,sharedstr);
+print "Step 3: Time elapsed (sec) = {}".format(time.clock() - t0)

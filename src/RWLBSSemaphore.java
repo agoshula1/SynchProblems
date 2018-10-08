@@ -13,127 +13,111 @@ public class RWLBSSemaphore{
   private Semaphore mutex;
   private Semaphore roomEmpty;
   private Semaphore turnstile;
-  //private final List<String> sharedData;
   private String sharedData;
 
-  public RWLBSSemaphore(int size){
+  public RWLBSSemaphore(){
     readers = 0;
     mutex = new Semaphore(1);
     roomEmpty = new Semaphore(1);
     turnstile = new Semaphore(1);
-    //sharedData = new ArrayList<String>(size);
     sharedData = "";
   }
 
-  public void simulate(int numThreads){
-    List<Thread> threads = new ArrayList<Thread>(numThreads);
-
-    Thread t,r;
-    for(int i = 0; i < numThreads/2; ++i){
-      final int ind = i;
-      t = new Thread(new Runnable() {
-        String newData = "item" + ind;
-        //List<String> d = sharedData;
-        boolean turnAcquired = true;
-        boolean roomAcquired = true;
-
-        public void run() {
-          try{
-            turnstile.acquire();
-            //turnAcquired = true;
-            roomEmpty.acquire();
-          //  roomAcquired = true;
-
-            //critical section
-            //d.add(ind, newData);
-            sharedData += newData;
-            System.out.println("Write: " + newData);
-            //end critical section
-          } catch (InterruptedException e) {
-              throw new IllegalStateException(e);
-          } finally {
-            if(turnAcquired)
-              turnstile.release();
-            if(roomAcquired)
-              roomEmpty.release();
-          }
-        };
-      });
-      threads.add(t);
-      t.start();
-
-      r = new Thread(new Runnable() {
-        int index = ind;
-        //List<String> d = sharedData;
-        boolean turnAcquired = true;
-        boolean mutexAcquired = true;
-        boolean roomAcquired = true;
-        public void run() {
-          try{
-            turnstile.acquire();
-            //turnAcquired = true;
-            turnstile.release();
-            turnAcquired = false;
-
-            mutex.acquire();
-            //mutexAcquired = true;
-            ++readers;
-            if(readers == 1)
-              roomEmpty.acquire();
-            mutex.release();
-
-            //critical section
-            System.out.println("Read: " + sharedData);
-            //end critical section
-
-            mutex.acquire();
-            --readers;
-            if(readers == 0){
-              roomEmpty.release();
-              roomAcquired = false;
-            }
-            mutex.release();
-            mutexAcquired = false;
-          } catch(InterruptedException e) {
-            throw new IllegalStateException(e);
-          } finally {
-            if(turnAcquired)
-              turnstile.release();
-            if(roomAcquired)
-              roomEmpty.release();
-            if(mutexAcquired)
-              mutex.release();
-          }
-        };
-      });
-      threads.add(r);
-      r.start();
-
+  private class Writer implements Runnable{
+    private String data;
+    public Writer(int i){
+      data = "item" + i;
     }
-
-    //wait for all threads to complete
-    for(int i = 0; i < threads.size(); ++i){
+    public void run() {
       try{
-        threads.get(i).join();
+        //long t0 = System.currentTimeMillis();
+        //System.out.println(t0);
+        turnstile.acquire();
+        roomEmpty.acquire();
+        //double waitTime = (System.currentTimeMillis() - t0)/1000.0;
+
+        //critical section
+        sharedData += data;
+        //System.out.println("\t\tWrite: " + data);
+        //System.out.println("\t\tWriter wait time (sec): " + waitTime);
+        //end critical section
       } catch (InterruptedException e) {
-          System.err.println("join interrupted");
+          throw new IllegalStateException(e);
+      } finally {
+        turnstile.release();
+        roomEmpty.release();
       }
     }
   }
 
-  public void stop(ExecutorService executor) {
-    try {
-        executor.shutdown();
-        executor.awaitTermination(60, TimeUnit.SECONDS);
+  private class Reader implements Runnable{
+    private boolean turnstile_acq;
+    private boolean roomEmpty_acq;
+    private boolean mutex_acq;
+    public Reader(){
+      turnstile_acq  = true;
+      roomEmpty_acq = true;
+      mutex_acq = true;
     }
-    catch (InterruptedException e) {
-        System.err.println("termination interrupted");
-    }
-    finally {
-        if (!executor.isTerminated()) {
-            System.err.println("killing non-finished tasks");
+    public void run() {
+      try{
+        turnstile.acquire();
+        turnstile.release();
+        turnstile_acq = false; //avoid signaling twice
+
+        mutex.acquire();
+        ++readers;
+        if(readers == 1){
+          roomEmpty.acquire();
         }
-        executor.shutdownNow();
+        mutex.release();
+
+        //critical section
+        //System.out.println("Read: " + sharedData);
+        //end critical section
+
+        mutex.acquire();
+        --readers;
+        if(readers == 0){
+          roomEmpty.release();
+        }
+        roomEmpty_acq = false; //avoid signaling twice
+        mutex.release();
+        mutex_acq = false; //avoid signaling twice
+      } catch(InterruptedException e) {
+        throw new IllegalStateException(e);
+      } finally {
+        if(turnstile_acq)
+          turnstile.release();
+        if(roomEmpty_acq)
+          roomEmpty.release();
+        if(mutex_acq)
+          mutex.release();
+      }
+    }
+  }
+
+  public void test(int numThreads, int inc){
+    List<Thread> threads = new ArrayList<Thread>(numThreads);
+
+    Thread t;
+    for(int i = 0; i < numThreads; ++i){
+      if(i % inc == 0){
+        t = new Thread(new Writer(i));
+      } else{
+        t = new Thread(new Reader());
+      }
+      threads.add(t);
+      t.start();
+    }
+
+    //wait for all threads to complete
+    for(int i = 0; i < threads.size(); i++){
+      try{
+        threads.get(i).join();
+      }catch (InterruptedException e){
+        System.out.println("Thread " + i + " was interrupted");
+      }
     }
   }
 
@@ -146,7 +130,34 @@ public class RWLBSSemaphore{
   }
 
   public static void main(String[] args){
-    RWLBSSemaphore rw = new RWLBSSemaphore(20);
-    rw.simulate(20);
+    RWLBSSemaphore rw = new RWLBSSemaphore();
+
+    //Correctness testing
+    //launch readers and writers back-to-back
+    /*System.out.println("Test 1:");
+    long t0 = System.currentTimeMillis();
+    rw.test(20,2);
+    double waitTime = (System.currentTimeMillis() - t0)/1000.0;
+    System.out.println("T: " + waitTime);
+
+    rw = new RWLBSSemaphore(); //clear data
+    //launch several readers, with the occasional reader (to detect starvation)
+    System.out.println("\nTest 2:");
+    rw.test(20,10);*/
+
+    //Performance testing
+    long t0 = System.currentTimeMillis();
+    rw.test(20,2);
+    System.out.println("Step 1: Time elapsed (sec) = " + (System.currentTimeMillis() - t0)/1000.0);
+
+    rw = new RWLBSSemaphore();
+    t0 = System.currentTimeMillis();
+    rw.test(200,2);
+    System.out.println("Step 1: Time elapsed (sec) = " + (System.currentTimeMillis() - t0)/1000.0);
+
+    rw = new RWLBSSemaphore();
+    t0 = System.currentTimeMillis();
+    rw.test(2000,2);
+    System.out.println("Step 1: Time elapsed (sec) = " + (System.currentTimeMillis() - t0)/1000.0);
   }
 }
