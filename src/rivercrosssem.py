@@ -4,6 +4,7 @@
  As in the book, this solution uses semaphores as the main concurrency mechanism.
 '''
 import threading
+import time
 
 class Barrier:
     def __init__(self, n):
@@ -48,6 +49,7 @@ def hacker(barr,data):
         for n in range(4):
             hackerQueue.release()
         data.hackers = 0
+        #print "hackers: 4 serfs: 0"
         isCaptain = True
     elif data.hackers == 2 and data.serfs >= 2:
         for n in range(2):
@@ -55,6 +57,7 @@ def hacker(barr,data):
             serfQueue.release()
         data.serfs -= 2
         data.hackers = 0
+        #print "hackers: 2 serfs: 2"
         isCaptain = True
     else:
         mutex.release()
@@ -66,7 +69,6 @@ def hacker(barr,data):
 
     if isCaptain:
         #row boat
-        print "rowing with hacker captain"
         mutex.release()
 
 def serf(barr,data):
@@ -77,6 +79,7 @@ def serf(barr,data):
         for n in range(4):
             serfQueue.release()
         data.serfs = 0
+        #print "hackers: 0 serfs: 4"
         isCaptain = True
     elif data.serfs == 2 and data.hackers >= 2:
         for n in range(2):
@@ -84,6 +87,7 @@ def serf(barr,data):
             hackerQueue.release()
         data.hackers -= 2
         data.serfs = 0
+        #print "hackers: 2 serfs: 2"
         isCaptain = True
     else:
         mutex.release()
@@ -95,22 +99,42 @@ def serf(barr,data):
 
     if isCaptain:
         #row boat
-        print "rowing with serf captain"
         mutex.release()
+
+def simulate(numProg, barr, data):
+    threads = []
+    for n in range(numProg):
+        if n % 2 == 0:
+            t = threading.Thread(target=hacker, args=(barr,data))
+        else:
+            t = threading.Thread(target=serf, args=(barr,data))
+        threads.append(t)
+        t.start()
+    for i in range(len(threads)):
+        threads[i].join()
 
 barrier = Barrier(4)
 mutex = threading.Semaphore(1)
 shareddata = SharedData()
 hackerQueue = threading.Semaphore(0)
 serfQueue = threading.Semaphore(0)
-numberThreads = 20
-threads = []
-for n in range(numberThreads/2):
-    t = threading.Thread(target=hacker, args=(barrier,shareddata))
-    threads.append(t)
-    t.start()
-    r = threading.Thread(target=serf, args=(barrier,shareddata))
-    threads.append(r)
-    r.start()
-for i in range(len(threads)):
-    threads[i].join()
+
+#correctness testing
+#simulate(60,barrier,shareddata)
+
+#performance testing
+t0 = time.clock()
+simulate(40,barrier,shareddata);
+print "Step 1: Time elapsed (sec) = {}".format(time.clock() - t0)
+
+barrier = Barrier(4)
+shareddata = SharedData()
+t0 = time.clock()
+simulate(400,barrier,shareddata);
+print "Step 2: Time elapsed (sec) = {}".format(time.clock() - t0)
+
+barrier = Barrier(4)
+shareddata = SharedData()
+t0 = time.clock()
+simulate(4000,barrier,shareddata);
+print "Step 3: Time elapsed (sec) = {}".format(time.clock() - t0)

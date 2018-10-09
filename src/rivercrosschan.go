@@ -6,8 +6,9 @@
 package main
 
 import (
+    "sync"
     "fmt"
-    //"time"
+    "time"
 )
 
 type Hacker struct{
@@ -17,27 +18,24 @@ type Serf struct{
   id int
 }
 
-func main(){
-  hackerChan := make(chan Hacker)
-  serfChan := make(chan Serf)
+func prodHackers(num int, h chan Hacker){
+  for i := 0; i < num; i++{
+    h <- Hacker{i}
+  }
+}
 
+func prodSerfs(num int, s chan Serf){
+  for i := 0; i < num; i++{
+    s <- Serf{i}
+  }
+}
+
+func simulate(numProgrammers int, h chan Hacker, s chan Serf){
   //produce hackers
-  go func(){
-    i := 0
-    for{
-      hackerChan <- Hacker{i}
-      i++
-    }
-  }()
+  go prodHackers(numProgrammers/2, h)
 
   //produce serfs
-  go func(){
-    i := 0
-    for{
-      serfChan <- Serf{i}
-      i++
-    }
-  }()
+  go prodSerfs(numProgrammers/2, s)
 
   //manage boat
   hackers := 0
@@ -45,33 +43,65 @@ func main(){
   var hTemp chan Hacker
   var sTemp chan Serf
 
-  for{
+  for i := 0; i < numProgrammers; i++{
     select{
-    case <- hackerChan:
+    case <- h:
       hackers++
-    case <- serfChan:
+    case <- s:
       serfs++
     }
 
     if (hackers + serfs) == 3{
       switch {
     		case hackers == 2 || serfs == 3:
-    			hTemp = hackerChan
-          hackerChan = nil
+    			hTemp = h
+          h = nil
     		case hackers == 3 || serfs == 2:
-    			sTemp = serfChan
-          serfChan = nil
+    			sTemp = s
+          s = nil
     	}
     }else if (hackers + serfs) == 4{
-      //launch boat
-      fmt.Printf("hackers: %d serfs: %d\n", hackers, serfs)
+      //row boat
+      //fmt.Printf("hackers: %d serfs: %d\n", hackers, serfs)
       hackers = 0
       serfs = 0
-      if hackerChan == nil{
-        hackerChan = hTemp
-      }else if serfChan == nil{
-        serfChan = sTemp
+      if h == nil{
+        h = hTemp
+      }else if s == nil{
+        s = sTemp
       }
     }
   }
+}
+
+func main(){
+  hackerChan := make(chan Hacker)
+  serfChan := make(chan Serf)
+  //correctness testing
+  //simulate(60, hackerChan, serfChan)
+
+  //performance testing
+  start := time.Now()
+  simulate(40, hackerChan, serfChan)
+  end := time.Now()
+  difference := end.Sub(start)
+  fmt.Printf("Step 1: Time elapsed (sec) = %f\n", difference.Seconds())
+
+  //reinitialize channels
+  hackerChan = make(chan Hacker)
+  serfChan = make(chan Serf)
+  start = time.Now()
+  simulate(400, hackerChan, serfChan)
+  end = time.Now()
+  difference = end.Sub(start)
+  fmt.Printf("Step 2: Time elapsed (sec) = %f\n", difference.Seconds())
+
+  //reinitialize channels
+  hackerChan = make(chan Hacker)
+  serfChan = make(chan Serf)
+  start = time.Now()
+  simulate(4000, hackerChan, serfChan)
+  end = time.Now()
+  difference = end.Sub(start)
+  fmt.Printf("Step 3: Time elapsed (sec) = %f\n", difference.Seconds())
 }
