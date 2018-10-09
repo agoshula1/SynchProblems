@@ -8,9 +8,53 @@ import java.lang.Integer;
 public class ConcurrentHashTable{
 
   //wrapper for concurrent hash map with Integers as keys and Strings as values
-  public final ConcurrentHashMap<Integer,String> hm;
+  private ConcurrentHashMap<Integer,String> hm;
   public ConcurrentHashTable(int initSize){
     hm = new ConcurrentHashMap<Integer,String>(initSize);
+  }
+
+  private class Write implements Runnable{
+    private Integer key;
+    private String value;
+    public Write(Integer k, String v){
+      key = k;
+      value = v;
+    }
+    public void run() {
+      hm.put(key,value);
+    }
+  }
+
+  private class Read implements Runnable{
+    private Integer key;
+    public Read(Integer k){
+      key = k;
+    }
+    public void run() {
+      String val = hm.get(key);
+      if(val == null){
+        System.out.println("Retrieval with key " + key.intValue() + " into empty slot");
+      }
+    }
+  }
+
+  private class RacingWrite implements Runnable{
+    private Integer key;
+    private int i;
+    public RacingWrite(Integer k, int i){
+      key = k;
+      this.i = i;
+    }
+    public void run() {
+      String val = hm.get(key);
+      if(val != null){
+        val = (Integer.parseInt(val) + i) + "";
+      }else{
+        val = i + "";
+      }
+      hm.put(key,val);
+      System.out.println("new value is " + val);
+    }
   }
 
   public void getInputsFromFile(String file, List<String> strs) throws Exception {
@@ -25,137 +69,72 @@ public class ConcurrentHashTable{
     reader.close();
 	}
 
-  public static void main(String[] args) throws Exception{
-    final ConcurrentHashTable javaHM = new ConcurrentHashTable(20);
+  public void test1(int numThreads) throws Exception{
     List<String> inputs = new ArrayList<String>();
-    javaHM.getInputsFromFile("strinputdata.txt", inputs); //get values to put into hash table
+    getInputsFromFile("strinputdata.txt", inputs); //get values to put into hash table
 
-    /* Test 1 (an idealistic scenario):
-     * number of threads correspond to size of table
-     * number of insertions == number of retrievals
-     * inserting threads launched (though not necessarily executed) before retrieving threads
-     * default priority levels of threads used
-     */
+    List<Thread> threads = new ArrayList<Thread>(numThreads);
+    Thread t;
+    Integer k;
+    String v;
+    //launch reading and writing threads back-to-back
+    //set higher priority for writing, lower for reading
+    for(int i = 0; i < numThreads; ++i){
+      if(i % 2 == 0){
+        k = new Integer(i);
+        v = inputs.get(i);
+        t = new Thread(new Write(k,v));
+        t.setPriority(t.MAX_PRIORITY);
+      }else{
+        k = new Integer(i - 1);
+        t = new Thread(new Read(k));
+        t.setPriority(t.MIN_PRIORITY);
+      }
+      threads.add(t);
+      t.start();
+    }
 
+    //wait for all threads to complete
+    for(int i = 0; i < threads.size(); ++i){
+      try{
+        threads.get(i).join();
+      }catch (InterruptedException e){
+        System.out.println("Thread " + i + " was interrupted");
+      }
+    }
+  }
+
+  public void test2(){
     List<Thread> threads = new ArrayList<Thread>();
     Thread t;
-    //launch threads to insert into the table
+    Integer k = new Integer(1);
+
     for(int i = 0; i < 20; ++i){
-      final String v = inputs.get(i);
-      final Integer k = new Integer(i);
-
-      t = new Thread(new Runnable() {
-        ConcurrentHashMap<Integer,String> hashMap = javaHM.hm;
-        Integer key = k;
-        String value = v;
-        public void run() {
-          synchronized(hashMap){
-            hashMap.put(k,v);
-          }
-        };
-      });
-      threads.add(t);
-      t.start();
-    }
-
-    //launch threads to retrieve values from the table
-    for(int i = 0; i < 20; ++i){
-      final Integer k = new Integer(i);
-
-      t = new Thread(new Runnable() {
-        ConcurrentHashMap<Integer,String> hashMap = javaHM.hm;
-        Integer key = k;
-        public void run() {
-          String val;
-          synchronized(hashMap){
-            val = hashMap.get(k);
-          }
-          if(val == null){
-            System.out.println("Retrieval with key " + key.intValue() + " into empty slot");
-          }
-        };
-      });
+      t = new Thread(new RacingWrite(k,i));
       threads.add(t);
       t.start();
     }
 
     //wait for all threads to complete
     for(int i = 0; i < threads.size(); ++i){
-      threads.get(i).join();
+      try{
+        threads.get(i).join();
+      }catch (InterruptedException e){
+        System.out.println("Thread " + i + " was interrupted");
+      }
     }
+    System.out.println(hm.get(new Integer(1)));
+  }
 
-    /* Test 2 (a more realistic scenario):
-     * number of insertion threads is twice the size of table
-     * number of insertions != number of retrievals
-     * threads launched back-to-back
-     * higher priority levels for inserting threads than retrieving threads
-     *//*
-    javaHM.hm.clear();
-    threads.clear();
-    Thread t,r;
-    //launch both threads (the insertion and corresponding retrieval) closer together
-    for(int i = 0; i < 40; ++i){
-      final String v = inputs.get(i);
-      final Integer k = new Integer(i % 20);
+  public static void main(String[] args) throws Exception{
+    ConcurrentHashTable javaHM = new ConcurrentHashTable(10);
+    javaHM.test1(20);
 
-      t = new Thread(new Runnable() {
-        ConcurrentHashMap<Integer,String> hashMap = javaHM.hm;
-        Integer key = k;
-        String value = v;
-        int step = i;
-        public void run() {
-          synchronized(hashMap){
-            String previous = hashMap.put(k,v);
-          }
-          //indicate if "second" thread to launch is overriding or initializing entry
-          if(i >= 20){
-            if(previous != null){
-              System.out.println("Override occurred with key " + key.intValue());
-            }else{
-              System.out.println("First insertion with key " + key.intValue());
-            }
-          }
-          /*if(previous != null){
-            System.out.println("Override occurred with key " + key.intValue() + " (previous value string '" + previous + "'):");
-          }
-          System.out.println("Insertion with key " + key.intValue() + " of string '" + v + "'\n");*/
-        /*};
-      });
-      t.setPriority(t.MAX_PRIORITY);
-      threads.add(t);
-      t.start();
-
-      r = new Thread(new Runnable() {
-        ConcurrentHashMap<Integer,String> hashMap = javaHM.hm;
-        Integer key = k;
-        String value = v;
-        public void run() {
-          synchronized(hashMap){
-            String curr = hashMap.get(k);
-          }
-          if(curr != null){
-            //System.out.println("Retrieval with key " + key.intValue() + " returned string '" + val + "'\n");
-            if(!curr.equals(value)){
-              System.out.println("Retrieval with key " + key.intValue() + " returned old data");
-            }
-          }else{
-            System.out.println("Retrieval with key " + key.intValue() + " into empty slot\n");
-          }
-        };
-      });
-      r.setPriority(t.MIN_PRIORITY);
-      threads.add(r);
-      r.start();
-    }
-
-    //wait for all threads to complete
-    for(int i = 0; i < threads.size(); ++i){
-      threads.get(i).join();
-    }
-    */
+    javaHM = new ConcurrentHashTable(10);
+    javaHM.test2();
 
     /*
-     * Test 3: (testing scalability)
+         * Test 3: (testing scalability)
      */
   }
 }
