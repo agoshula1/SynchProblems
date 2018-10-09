@@ -7,6 +7,8 @@
  */
 
 import java.util.concurrent.*;
+import java.util.List;
+import java.util.ArrayList;
 
 public class DPMonitor{
 
@@ -25,16 +27,32 @@ public class DPMonitor{
     }
   }
 
+  private class Philosopher implements Runnable{
+    private int id;
+    public Philosopher(int i){
+      id = i;
+    }
+    public void run() {
+      //think
+      sleep(ThreadLocalRandom.current().nextInt(0, 2));
+      pickup(id);
+      //eat
+      sleep(ThreadLocalRandom.current().nextInt(0, 2));
+      putdown(id);
+    }
+  }
+
   synchronized void pickup(int i){
     states[i] = State.HUNGRY;
     test(i);
     synchronized(cvs[i]){
-      while(states[i] != State.EATING)
-        try{
+      try{
+        while(states[i] != State.EATING){
           cvs[i].wait();
-        }catch(InterruptedException e){
-          throw new IllegalStateException(e);
         }
+      }catch(InterruptedException e){
+        throw new IllegalStateException(e);
+      }
     }
   }
 
@@ -53,6 +71,43 @@ public class DPMonitor{
          synchronized(cvs[i]){
            cvs[i].notify();
          }
+         System.out.println("Philosopher " + i + " is eating");
     }
+  }
+
+  public void simulate(int numIter){
+    Thread[] threads = new Thread[5];
+
+    Thread t;
+    for(int i = 0; i < numIter; ++i){
+      for(int j = 0; j < 5; j++){
+        t = new Thread(new Philosopher(j));
+        threads[j] = t;
+        t.start();
+      }
+
+      //wait for all threads to complete
+      for(int k = 0; k < 5; k++){
+        try{
+          threads[k].join();
+        }catch (InterruptedException e){
+          System.out.println("Thread " + k + " was interrupted");
+        }
+      }
+    }
+  }
+
+  public void sleep(int seconds) {
+    try {
+        TimeUnit.SECONDS.sleep(seconds);
+    } catch (InterruptedException e) {
+        throw new IllegalStateException(e);
+    }
+  }
+
+  public static void main(String[] args){
+    //correctness testing
+    DPMonitor dp = new DPMonitor();
+    dp.simulate(1);
   }
 }
