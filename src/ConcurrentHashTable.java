@@ -1,3 +1,8 @@
+/*
+ * Using implementation of concurrent hash table provided in concurrent package:
+ * https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/ConcurrentHashMap.html
+ */
+
 import java.util.concurrent.*;
 import java.io.BufferedReader;
 import java.io.FileReader;
@@ -9,8 +14,10 @@ public class ConcurrentHashTable{
 
   //wrapper for concurrent hash map with Integers as keys and Strings as values
   private ConcurrentHashMap<Integer,String> hm;
+  private Semaphore mutex;
   public ConcurrentHashTable(int initSize){
     hm = new ConcurrentHashMap<Integer,String>(initSize);
+    mutex = new Semaphore(1);
   }
 
   private class Write implements Runnable{
@@ -33,27 +40,8 @@ public class ConcurrentHashTable{
     public void run() {
       String val = hm.get(key);
       if(val == null){
-        System.out.println("Retrieval with key " + key.intValue() + " into empty slot");
+        //System.out.println("Retrieval with key " + key.intValue() + " into empty slot");
       }
-    }
-  }
-
-  private class RacingWrite implements Runnable{
-    private Integer key;
-    private int i;
-    public RacingWrite(Integer k, int i){
-      key = k;
-      this.i = i;
-    }
-    public void run() {
-      String val = hm.get(key);
-      if(val != null){
-        val = (Integer.parseInt(val) + i) + "";
-      }else{
-        val = i + "";
-      }
-      hm.put(key,val);
-      System.out.println("new value is " + val);
     }
   }
 
@@ -82,13 +70,13 @@ public class ConcurrentHashTable{
     for(int i = 0; i < numThreads; ++i){
       if(i % 2 == 0){
         k = new Integer(i);
+        t = new Thread(new Read(k));
+        t.setPriority(t.MIN_PRIORITY);
+      }else{
+        k = new Integer(i - 1);
         v = inputs.get(i);
         t = new Thread(new Write(k,v));
         t.setPriority(t.MAX_PRIORITY);
-      }else{
-        k = new Integer(i - 1);
-        t = new Thread(new Read(k));
-        t.setPriority(t.MIN_PRIORITY);
       }
       threads.add(t);
       t.start();
@@ -102,39 +90,27 @@ public class ConcurrentHashTable{
         System.out.println("Thread " + i + " was interrupted");
       }
     }
-  }
-
-  public void test2(){
-    List<Thread> threads = new ArrayList<Thread>();
-    Thread t;
-    Integer k = new Integer(1);
-
-    for(int i = 0; i < 20; ++i){
-      t = new Thread(new RacingWrite(k,i));
-      threads.add(t);
-      t.start();
-    }
-
-    //wait for all threads to complete
-    for(int i = 0; i < threads.size(); ++i){
-      try{
-        threads.get(i).join();
-      }catch (InterruptedException e){
-        System.out.println("Thread " + i + " was interrupted");
-      }
-    }
-    System.out.println(hm.get(new Integer(1)));
   }
 
   public static void main(String[] args) throws Exception{
+    //correctness testing
     ConcurrentHashTable javaHM = new ConcurrentHashTable(10);
+    //javaHM.test1(20);
+
+    //performance testing
+    //javaHM = new ConcurrentHashTable(10);
+    long t0 = System.currentTimeMillis();
     javaHM.test1(20);
+    System.out.println("Step 1: Time elapsed (sec) = " + (System.currentTimeMillis() - t0)/1000.0);
 
-    javaHM = new ConcurrentHashTable(10);
-    javaHM.test2();
+    javaHM = new ConcurrentHashTable(100);
+    t0 = System.currentTimeMillis();
+    javaHM.test1(200);
+    System.out.println("Step 2: Time elapsed (sec) = " + (System.currentTimeMillis() - t0)/1000.0);
 
-    /*
-         * Test 3: (testing scalability)
-     */
+    javaHM = new ConcurrentHashTable(1000);
+    t0 = System.currentTimeMillis();
+    javaHM.test1(2000);
+    System.out.println("Step 3: Time elapsed (sec) = " + (System.currentTimeMillis() - t0)/1000.0);
   }
 }
