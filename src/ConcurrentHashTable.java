@@ -94,23 +94,23 @@ public class ConcurrentHashTable{
 
   public static void main(String[] args) throws Exception{
     //correctness testing
-    ConcurrentHashTable javaHM = new ConcurrentHashTable(10);
-    //javaHM.test1(20);
+    //ConcurrentHashTable javaHM = new ConcurrentHashTable(25);
+    //javaHM.test1(50);
 
     //performance testing
-    //javaHM = new ConcurrentHashTable(10);
+    ConcurrentHashTable javaHM2 = new ConcurrentHashTable(10);
     long t0 = System.currentTimeMillis();
-    javaHM.test1(20);
+    javaHM2.test1(20);
     System.out.println("Step 1: Time elapsed (sec) = " + (System.currentTimeMillis() - t0)/1000.0);
 
-    javaHM = new ConcurrentHashTable(100);
+    javaHM2 = new ConcurrentHashTable(100);
     t0 = System.currentTimeMillis();
-    javaHM.test1(200);
+    javaHM2.test1(200);
     System.out.println("Step 2: Time elapsed (sec) = " + (System.currentTimeMillis() - t0)/1000.0);
 
-    javaHM = new ConcurrentHashTable(1000);
+    javaHM2 = new ConcurrentHashTable(1000);
     t0 = System.currentTimeMillis();
-    javaHM.test1(2000);
+    javaHM2.test1(2000);
     System.out.println("Step 3: Time elapsed (sec) = " + (System.currentTimeMillis() - t0)/1000.0);
   }
 }

@@ -61,7 +61,7 @@ func test1(numRoutines int){
 
 func main(){
   //correctness testing
-  test1(30)
+  //test1(50)
 
   //performance testing
   start := time.Now()

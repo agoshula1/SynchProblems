@@ -29,7 +29,6 @@ class SyncCtrl():
 
 # writer thread
 def writer(ctrl, data, n):
-    t0 = time.clock()
     ctrl.in_sem.acquire()
     ctrl.out.acquire()
     if ctrl.ctrin == ctrl.ctrout:
@@ -39,13 +38,12 @@ def writer(ctrl, data, n):
         ctrl.out.release()
         ctrl.wrt.acquire()
         ctrl.wait = False
-    waitTime = time.clock() - t0
 
     #critical section
+    #time.sleep(1)
     item = "item" + str(n)
     data.concat(item)
     #print "\tWriting: " + item + "\n"
-    #print "\tWriter wait time (sec): {}".format(waitTime)
 
     ctrl.in_sem.release()
 
@@ -82,15 +80,17 @@ def test(nthreads, inc, ctrl, sharedData):
 # setup semaphores and other variables
 ctrl = SyncCtrl()
 sharedstr = StrData()
-'''#test 1: launch readers and writers back-to-back
+'''
+#test 1: launch readers and writers back-to-back
 print "Test 1:\n"
 test(20,2,ctrl,sharedstr)
 
 ctrl = SyncCtrl()
 sharedstr = StrData()
 #test 2: launch several readers, with the occasional reader (to detect starvation)
-test(20,10,ctrl,sharedstr)'''
-
+print "Test 2:\n"
+test(30,10,ctrl,sharedstr)
+'''
 #performance testing
 t0 = time.clock()
 test(20,2,ctrl,sharedstr);

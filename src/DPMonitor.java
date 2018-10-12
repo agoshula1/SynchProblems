@@ -34,10 +34,10 @@ public class DPMonitor{
     }
     public void run() {
       //think
-      sleep(ThreadLocalRandom.current().nextInt(0, 2));
+      //sleep(ThreadLocalRandom.current().nextInt(0, 2));
       pickup(id);
       //eat
-      sleep(ThreadLocalRandom.current().nextInt(0, 2));
+      //sleep(ThreadLocalRandom.current().nextInt(0, 2));
       putdown(id);
     }
   }
@@ -108,6 +108,6 @@ public class DPMonitor{
   public static void main(String[] args){
     //correctness testing
     DPMonitor dp = new DPMonitor();
-    dp.simulate(1);
+    dp.simulate(20);
   }
 }

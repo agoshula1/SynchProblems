@@ -30,16 +30,13 @@ public class RWLBSSemaphore{
     }
     public void run() {
       try{
-        //long t0 = System.currentTimeMillis();
-        //System.out.println(t0);
         turnstile.acquire();
         roomEmpty.acquire();
-        //double waitTime = (System.currentTimeMillis() - t0)/1000.0;
 
         //critical section
+        //sleep(1);
         sharedData += data;
         //System.out.println("\t\tWrite: " + data);
-        //System.out.println("\t\tWriter wait time (sec): " + waitTime);
         //end critical section
       } catch (InterruptedException e) {
           throw new IllegalStateException(e);
@@ -131,20 +128,17 @@ public class RWLBSSemaphore{
 
   public static void main(String[] args){
     RWLBSSemaphore rw = new RWLBSSemaphore();
-
+/*
     //Correctness testing
     //launch readers and writers back-to-back
-    /*System.out.println("Test 1:");
-    long t0 = System.currentTimeMillis();
+    System.out.println("Test 1:");
     rw.test(20,2);
-    double waitTime = (System.currentTimeMillis() - t0)/1000.0;
-    System.out.println("T: " + waitTime);
 
     rw = new RWLBSSemaphore(); //clear data
     //launch several readers, with the occasional reader (to detect starvation)
     System.out.println("\nTest 2:");
-    rw.test(20,10);*/
-
+    rw.test(30,10);
+*/
     //Performance testing
     long t0 = System.currentTimeMillis();
     rw.test(20,2);
@@ -153,11 +147,11 @@ public class RWLBSSemaphore{
     rw = new RWLBSSemaphore();
     t0 = System.currentTimeMillis();
     rw.test(200,2);
-    System.out.println("Step 1: Time elapsed (sec) = " + (System.currentTimeMillis() - t0)/1000.0);
+    System.out.println("Step 2: Time elapsed (sec) = " + (System.currentTimeMillis() - t0)/1000.0);
 
     rw = new RWLBSSemaphore();
     t0 = System.currentTimeMillis();
     rw.test(2000,2);
-    System.out.println("Step 1: Time elapsed (sec) = " + (System.currentTimeMillis() - t0)/1000.0);
+    System.out.println("Step 3: Time elapsed (sec) = " + (System.currentTimeMillis() - t0)/1000.0);
   }
 }
